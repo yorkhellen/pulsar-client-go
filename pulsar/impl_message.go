@@ -142,6 +142,11 @@ func deserializeMessageID(data []byte) (MessageID, error) {
 	return id, nil
 }
 
+// new MessageId from ledgerId,entryId,batchIdx,partitionIdx
+func NewMessageId(ledgerID int64, entryID int64, batchIdx int32, partitionIdx int32)(MessageID) {
+	return newMessageID(ledgerID,entryID,batchIdx,partitionIdx)
+}
+
 func newMessageID(ledgerID int64, entryID int64, batchIdx int32, partitionIdx int32) MessageID {
 	return messageID{
 		ledgerID:     ledgerID,
