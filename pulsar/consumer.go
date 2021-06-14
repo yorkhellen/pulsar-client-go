@@ -169,6 +169,9 @@ type Consumer interface {
 	// This calls blocks until a message is available.
 	Receive(context.Context) (Message, error)
 
+	// Batch Receive Messages
+	BatchReceive(context.Context,uint32)([]Message,error)
+
 	// Chan returns a channel to consume messages from
 	Chan() <-chan ConsumerMessage
 

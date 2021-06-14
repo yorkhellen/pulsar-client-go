@@ -19,6 +19,7 @@ package pulsar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -115,6 +116,31 @@ func newRegexConsumer(c *client, opts ConsumerOptions, tn *internal.TopicName, p
 	go rc.monitor()
 
 	return rc, nil
+}
+
+func (c *regexConsumer)BatchReceive(ctx context.Context,num uint32)([]Message,error) {
+	if num <= 0  {
+		return nil ,errors.New("batch receive message number is invalid")
+	}
+
+	var messages [] Message
+
+	for {
+		select {
+		case <-c.closeCh:
+			return nil, newError(ConsumerClosed, "consumer closed")
+		case cm, ok := <-c.messageCh:
+			if !ok {
+				return nil, newError(ConsumerClosed, "consumer closed")
+			}
+			messages = append(messages,cm.Message)
+			if len(messages) >= int(num) {
+				return messages, nil
+			}
+		case <-ctx.Done():
+			return messages, ctx.Err()
+		}
+	}
 }
 
 func (c *regexConsumer) Subscription() string {

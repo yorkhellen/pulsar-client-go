@@ -19,6 +19,7 @@ package pulsar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -76,7 +77,30 @@ func newMultiTopicConsumer(client *client, options ConsumerOptions, topics []str
 
 	return mtc, nil
 }
+func (c *multiTopicConsumer)BatchReceive(ctx context.Context,num uint32)([]Message,error) {
+	if num <= 0  {
+		return nil ,errors.New("batch receive message number is invalid")
+	}
 
+	var messages [] Message
+
+	for {
+		select {
+		case <-c.closeCh:
+			return nil, newError(ConsumerClosed, "consumer closed")
+		case cm, ok := <-c.messageCh:
+			if !ok {
+				return nil, newError(ConsumerClosed, "consumer closed")
+			}
+			messages = append(messages,cm.Message)
+			if len(messages) >= int(num) {
+				return messages, nil
+			}
+		case <-ctx.Done():
+			return messages, ctx.Err()
+		}
+	}
+}
 func (c *multiTopicConsumer) Subscription() string {
 	return c.options.SubscriptionName
 }
