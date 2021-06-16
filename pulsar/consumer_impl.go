@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar/internal"
@@ -45,6 +46,8 @@ type consumer struct {
 	consumers                 []*partitionConsumer
 	consumerName              string
 	disableForceTopicCreation bool
+	mutexForReceiveWithZeroQueueSize sync.Mutex
+	cursorWithZeroQueueSize int32
 
 	// channel used to deliver message to clients
 	messageCh chan ConsumerMessage
@@ -69,7 +72,7 @@ func newConsumer(client *client, options ConsumerOptions) (Consumer, error) {
 		return nil, newError(SubscriptionNotFound, "subscription name is required for consumer")
 	}
 
-	if options.ReceiverQueueSize <= 0 {
+	if options.ReceiverQueueSize < 0 {
 		options.ReceiverQueueSize = defaultReceiverQueueSize
 	}
 
@@ -190,6 +193,7 @@ func newInternalConsumer(client *client, options ConsumerOptions, topic string,
 		client:                    client,
 		options:                   options,
 		disableForceTopicCreation: disableForceTopicCreation,
+		cursorWithZeroQueueSize:   0,
 		messageCh:                 messageCh,
 		closeCh:                   make(chan struct{}),
 		errorCh:                   make(chan error),
@@ -389,7 +393,45 @@ func (c *consumer) Unsubscribe() error {
 	return nil
 }
 
+func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Message, err error) {
+	var errMsg string
+	if c.options.ReceiverQueueSize != 0 {
+		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
+		return nil,fmt.Errorf(errMsg)
+	}
+	//the incoming message queue should never be greater than 0 when Queue size is 0
+	if len(c.messageCh) >0 {
+		// clear incoming message
+		select {
+		case <-c.messageCh:
+		}
+	}
+
+	c.mutexForReceiveWithZeroQueueSize.Lock()
+	defer c.mutexForReceiveWithZeroQueueSize.Unlock()
+
+	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
+	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
+	c.consumers[cursor].internalFlow(1)
+	for {
+		select {
+		case <-c.closeCh:
+			return nil, newError(ConsumerClosed, "consumer closed")
+		case cm, ok := <-c.messageCh:
+			if !ok {
+				return nil, newError(ConsumerClosed, "consumer closed")
+			}
+			return cm.Message, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
+	if c.options.ReceiverQueueSize == 0 {
+		return c.fetchSingleMessageFromBroker(ctx)
+	}
 	for {
 		select {
 		case <-c.closeCh:

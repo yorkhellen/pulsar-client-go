@@ -145,6 +145,10 @@ type partitionConsumer struct {
 func newPartitionConsumer(parent Consumer, client *client, options *partitionConsumerOpts,
 	messageCh chan ConsumerMessage, dlq *dlqRouter,
 	metrics *internal.TopicMetrics) (*partitionConsumer, error) {
+	receiveQueueSize := options.receiverQueueSize
+	if receiveQueueSize == 0 {
+		receiveQueueSize = defaultReceiverQueueSize
+	}
 	pc := &partitionConsumer{
 		parentConsumer:       parent,
 		client:               client,
@@ -155,7 +159,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 		partitionIdx:         int32(options.partitionIdx),
 		eventsCh:             make(chan interface{}, 10),
 		queueSize:            int32(options.receiverQueueSize),
-		queueCh:              make(chan []*message, options.receiverQueueSize),
+		queueCh:              make(chan []*message, receiveQueueSize),
 		startMessageID:       options.startMessageID,
 		connectedCh:          make(chan struct{}),
 		messageCh:            messageCh,
@@ -665,8 +669,10 @@ func (pc *partitionConsumer) dispatcher() {
 
 			pc.log.Debugf("dispatcher requesting initial permits=%d", initialPermits)
 			// send initial permits
-			if err := pc.internalFlow(initialPermits); err != nil {
-				pc.log.WithError(err).Error("unable to send initial permits to broker")
+			if pc.queueSize >0 {
+				if err := pc.internalFlow(initialPermits); err != nil {
+					pc.log.WithError(err).Error("unable to send initial permits to broker")
+				}
 			}
 
 		case msgs, ok := <-queueCh:
@@ -693,8 +699,10 @@ func (pc *partitionConsumer) dispatcher() {
 				pc.availablePermits = 0
 
 				pc.log.Debugf("requesting more permits=%d available=%d", requestedPermits, availablePermits)
-				if err := pc.internalFlow(uint32(requestedPermits)); err != nil {
-					pc.log.WithError(err).Error("unable to send permits")
+				if pc.queueSize > 0 {
+					if err := pc.internalFlow(uint32(requestedPermits)); err != nil {
+						pc.log.WithError(err).Error("unable to send permits")
+					}
 				}
 			}
 
@@ -731,8 +739,10 @@ func (pc *partitionConsumer) dispatcher() {
 
 			pc.log.Debugf("dispatcher requesting initial permits=%d", initialPermits)
 			// send initial permits
-			if err := pc.internalFlow(initialPermits); err != nil {
-				pc.log.WithError(err).Error("unable to send initial permits to broker")
+			if pc.queueSize > 0 {
+				if err := pc.internalFlow(initialPermits); err != nil {
+					pc.log.WithError(err).Error("unable to send initial permits to broker")
+				}
 			}
 
 			close(doneCh)
