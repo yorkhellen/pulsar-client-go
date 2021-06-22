@@ -400,13 +400,7 @@ func (c * consumer) fetchMessageFromBroker(ctx context.Context,num uint32) (mess
 		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
 		return nil,fmt.Errorf(errMsg)
 	}
-	//the incoming message queue should never be greater than 0 when Queue size is 0
-	if len(c.messageCh) >0 {
-		// clear incoming message
-		select {
-		case <-c.messageCh:
-		}
-	}
+	// do not clear
 	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
 	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
 	c.consumers[cursor].internalFlow(num)
@@ -434,17 +428,6 @@ func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Me
 		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
 		return nil,fmt.Errorf(errMsg)
 	}
-	//the incoming message queue should never be greater than 0 when Queue size is 0
-	if len(c.messageCh) >0 {
-		// clear incoming message
-		select {
-			case <-c.messageCh:
-		}
-	}
-
-	c.mutexForReceiveWithZeroQueueSize.Lock()
-	defer c.mutexForReceiveWithZeroQueueSize.Unlock()
-
 	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
 	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
 	c.consumers[cursor].internalFlow(1)
