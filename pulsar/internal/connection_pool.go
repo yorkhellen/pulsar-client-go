@@ -125,6 +125,5 @@ func (p *connectionPool) getMapKey(addr *url.URL) string {
 		cnt = -cnt
 	}
 	idx := cnt % p.maxConnectionsPerHost
-	fmt.Printf("p addr %v maxConnectionPerHost %v mapKey %v\n",p,p.maxConnectionsPerHost,fmt.Sprint(addr.Host,'-',idx))
 	return fmt.Sprint(addr.Host, '-', idx)
 }
