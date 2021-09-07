@@ -148,7 +148,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 	metrics *internal.TopicMetrics) (*partitionConsumer, error) {
 	receiveQueueSize := options.receiverQueueSize
 	if receiveQueueSize == 0 {
-			receiveQueueSize = defaultReceiverQueueSize
+		receiveQueueSize = defaultReceiverQueueSize
 	}
 	pc := &partitionConsumer{
 		parentConsumer:       parent,

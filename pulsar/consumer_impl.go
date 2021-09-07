@@ -47,7 +47,6 @@ type consumer struct {
 	consumers                 []*partitionConsumer
 	consumerName              string
 	disableForceTopicCreation bool
-	mutexForReceiveWithZeroQueueSize sync.Mutex
 	cursorWithZeroQueueSize int32
 
 	// channel used to deliver message to clients
@@ -394,40 +393,13 @@ func (c *consumer) Unsubscribe() error {
 	return nil
 }
 
-func (c * consumer) fetchMessageFromBroker(ctx context.Context,num uint32) (message [] Message ,err error) {
-	var errMsg string
-	if c.options.ReceiverQueueSize != 0 {
-		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
-		return nil,fmt.Errorf(errMsg)
-	}
-	// do not clear
-	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
-	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
-	c.consumers[cursor].internalFlow(num)
-	var messages [] Message
-	for {
-		select {
-		case <-c.closeCh:
-			return nil, newError(ConsumerClosed, "consumer closed")
-		case cm, ok := <-c.messageCh:
-			if !ok {
-				return nil, newError(ConsumerClosed, "consumer closed")
-			}
-			messages = append(messages,cm.Message)
-			if len(messages) > int(num) {
-				return messages, nil
-			}
-		case <-ctx.Done():
-			return messages, ctx.Err()
-		}
-	}
-}
 func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Message, err error) {
 	var errMsg string
 	if c.options.ReceiverQueueSize != 0 {
 		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
 		return nil,fmt.Errorf(errMsg)
 	}
+
 	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
 	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
 	c.consumers[cursor].internalFlow(1)
@@ -445,32 +417,7 @@ func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Me
 		}
 	}
 }
-func (c *consumer)BatchReceive(ctx context.Context,num uint32)([]Message,error) {
-	if num <= 0  {
-		return nil ,errors.New("batch receive message number is invalid")
-	}
-	if c.options.ReceiverQueueSize == 0 {
-		return c.fetchMessageFromBroker(ctx,num)
-	}
-	var messages [] Message
 
-	for {
-		select {
-		case <-c.closeCh:
-			return nil, newError(ConsumerClosed, "consumer closed")
-		case cm, ok := <-c.messageCh:
-			if !ok {
-				return nil, newError(ConsumerClosed, "consumer closed")
-			}
-			messages = append(messages,cm.Message)
-			if len(messages) >= int(num) {
-				return messages, nil
-			}
-		case <-ctx.Done():
-			return messages, ctx.Err()
-		}
-	}
-}
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
 	if c.options.ReceiverQueueSize == 0 {
 		return c.fetchSingleMessageFromBroker(ctx)
