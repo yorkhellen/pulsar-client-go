@@ -398,9 +398,7 @@ func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Me
 		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
 		return nil,fmt.Errorf(errMsg)
 	}
-
-	cursor:=(atomic.LoadInt32(&c.cursorWithZeroQueueSize)+1)%int32(len(c.consumers))
-	atomic.StoreInt32(&c.cursorWithZeroQueueSize,cursor)
+	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
 	c.consumers[cursor].internalFlow(1)
 	for {
 		select {
