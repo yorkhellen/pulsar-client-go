@@ -408,34 +408,11 @@ func (c *consumer) Unsubscribe() error {
 	return nil
 }
 
-func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Message, err error) {
-	var errMsg string
-	if c.options.ReceiverQueueSize != 0 {
-		errMsg +=fmt.Sprintf("Cant't use receiveForZeroQueueSize if the queue size is %d",c.options.ReceiverQueueSize)
-		return nil,fmt.Errorf(errMsg)
-	}
-	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
-	c.consumers[cursor].internalFlow(1)
-	for {
-		select {
-		case <-c.closeCh:
-			return nil, newError(ConsumerClosed, "consumer closed")
-		case cm, ok := <-c.messageCh:
-			if !ok {
-				return nil, newError(ConsumerClosed, "consumer closed")
-			}
-			return cm.Message, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-}
-
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
-	c.log.Info("%v receive message  receiveQueueSize %v",c.topic,c.options.ReceiverQueueSize)
+	fmt.Printf("%v receive message  receiveQueueSize %v",c.topic,c.options.ReceiverQueueSize)
 	if c.options.ReceiverQueueSize == 0 {
-		c.log.Info("%v zeroQueue receive message",c.topic)
-		return c.fetchSingleMessageFromBroker(ctx)
+		cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
+		c.consumers[cursor].internalFlow(1)
 	}
 	for {
 		select {
