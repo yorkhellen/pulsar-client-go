@@ -148,7 +148,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 	metrics *internal.TopicMetrics) (*partitionConsumer, error) {
 	receiveQueueSize := options.receiverQueueSize
 	if receiveQueueSize == 0 {
-		receiveQueueSize = defaultReceiverQueueSize
+		receiveQueueSize = zeroQueueSize
 	}
 	pc := &partitionConsumer{
 		parentConsumer:       parent,
@@ -612,7 +612,7 @@ func (pc *partitionConsumer) internalFlow(permits uint32) error {
 		ConsumerId:     proto.Uint64(pc.consumerID),
 		MessagePermits: proto.Uint32(permits),
 	}
-	//pc.log.Infof("%v internal flow %v",pc.topic,permits)
+	pc.log.Infof("%v internal flow %v",pc.topic,permits)
 	pc.client.rpcClient.RequestOnCnxNoWait(pc._getConn(), pb.BaseCommand_FLOW, cmdFlow)
 
 	return nil
