@@ -432,7 +432,9 @@ func (c * consumer) fetchSingleMessageFromBroker(ctx context.Context)(message Me
 }
 
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
+	c.log.Infof("%v receive message  receiveQueueSize %v",c.topic,c.options.ReceiverQueueSize)
 	if c.options.ReceiverQueueSize == 0 {
+		c.log.Infof("%v zeroQueue receive message",c.topic)
 		return c.fetchSingleMessageFromBroker(ctx)
 	}
 	for {
