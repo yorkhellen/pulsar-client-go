@@ -225,7 +225,7 @@ func (p *partitionProducer) grabCnx() error {
 		p.log.WithError(err).Error("Failed to create producer")
 		return err
 	}
-
+	p.log.Infof("id %v create producer request info %+v  responseProducerName %v",id ,*cmdProducer,res.Response.ProducerSuccess.GetProducerName())
 	p.producerName = res.Response.ProducerSuccess.GetProducerName()
 
 	var encryptor internalcrypto.Encryptor
