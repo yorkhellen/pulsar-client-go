@@ -243,6 +243,7 @@ func (c *regexConsumer) Close() {
 			}(con)
 		}
 		wg.Wait()
+		c.client.handlers.Del(c)
 		c.dlq.close()
 		c.rlq.close()
 	})
