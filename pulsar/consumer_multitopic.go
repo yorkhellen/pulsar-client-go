@@ -96,12 +96,14 @@ func (c *multiTopicConsumer) Unsubscribe() error {
 	return errs
 }
 
-func (c *multiTopicConsumer) Receive(ctx context.Context) (message Message, err error) {
-	if c.options.ReceiverQueueSize == 0 {
-		for _,consumer := range c.consumers {
-			return consumer.Receive(ctx)
-		}
+func (c *multiTopicConsumer) Flow(permit uint32){
+	for _,consumer := range c.consumers {
+		consumer.Flow(permit)
+		return
 	}
+}
+
+func (c *multiTopicConsumer) Receive(ctx context.Context) (message Message, err error) {
 	for {
 		select {
 		case <-c.closeCh:

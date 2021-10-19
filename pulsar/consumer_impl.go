@@ -400,12 +400,12 @@ func (c *consumer) Unsubscribe() error {
 	}
 	return nil
 }
+func (c * consumer) Flow(permits uint32) {
+	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
+	c.consumers[cursor].internalFlow(permits)
+}
 
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
-	if c.options.ReceiverQueueSize == 0 {
-		cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
-		c.consumers[cursor].internalFlow(1)
-	}
 	for {
 		select {
 		case <-c.closeCh:

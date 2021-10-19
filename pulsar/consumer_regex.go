@@ -161,6 +161,12 @@ func (c *regexConsumer) Unsubscribe() error {
 	}
 	return errs
 }
+func (c *regexConsumer) Flow(permit uint32){
+	for _,consumer := range c.consumers {
+		consumer.Flow(permit)
+		return
+	}
+}
 
 func (c *regexConsumer) Receive(ctx context.Context) (message Message, err error) {
 	for {

@@ -168,6 +168,9 @@ type Consumer interface {
 	// Unsubscribe the consumer
 	Unsubscribe() error
 
+	//request message
+	Flow(uint32)
+
 	// Receive a single message.
 	// This calls blocks until a message is available.
 	Receive(context.Context) (Message, error)
