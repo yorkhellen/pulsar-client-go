@@ -1272,3 +1272,22 @@ func TestExactlyOnceWithProducerNameSpecified(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, producer3)
 }
+
+func TestProducerSendMessageWithError(t *testing.T) {
+	client,err:=NewClient(ClientOptions{
+		URL:serviceURL,
+	})
+	assert.NoError(t,err)
+	defer client.Close()
+
+	topicName := newTopicName()
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+		Name:  "p-name-1",
+	})
+
+	assert.NoError(t,err)
+
+
+}
