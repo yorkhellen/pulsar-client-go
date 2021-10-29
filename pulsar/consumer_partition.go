@@ -812,7 +812,7 @@ func (pc *partitionConsumer) dispatcher() {
 			// send more permits if needed
 			pc.availablePermits++
 			flowThreshold := int32(math.Max(float64(pc.queueSize/2), 1))
-			pc.log.Errorf(" pcTopicName %v nowTime %v receiveTime %v request available %v flowThrehold %v",pc.topic,time.Now(),pc.receiveTime, pc.availablePermits,flowThreshold)
+			//pc.log.Errorf(" pcTopicName %v nowTime %v receiveTime %v request available %v flowThrehold %v",pc.topic,time.Now(),pc.receiveTime, pc.availablePermits,flowThreshold)
 			if pc.availablePermits >= flowThreshold {
 				availablePermits := pc.availablePermits
 				requestedPermits := availablePermits
