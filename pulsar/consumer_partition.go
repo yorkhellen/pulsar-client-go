@@ -813,20 +813,20 @@ func (pc *partitionConsumer) dispatcher() {
 			// send more permits if needed
 			pc.availablePermits++
 			flowThreshold := int32(math.Max(float64(pc.queueSize/2), zeroQueueSize/2))
-			//pc.log.Errorf(" request available %v flow %v",pc.availablePermits,flowThreshold)
+			pc.log.Errorf(" request available %v flow %v",pc.availablePermits,flowThreshold)
 			if pc.availablePermits >= flowThreshold {
 				availablePermits := pc.availablePermits
 				requestedPermits := availablePermits
 				pc.availablePermits = 0
 
-				//pc.log.Errorf("now %v requesting more permits=%d available=%d activeTime %v  flowThreshold %v", time.Now(), requestedPermits, availablePermits,pc.receiveTime,flowThreshold)
+				pc.log.Errorf("now %v requesting more permits=%d available=%d activeTime %v  flowThreshold %v", time.Now(), requestedPermits, availablePermits,pc.receiveTime,flowThreshold)
 				if pc.queueSize > 0 {
 					if err := pc.internalFlow(uint32(requestedPermits)); err != nil {
 						pc.log.WithError(err).Error("unable to send permits")
 					}
 				} else {
-					if pc.receiveTime.After(time.Now().Add(-100 * time.Millisecond)){
-						//pc.log.Errorf("now %v requesting more permits=%d available=%d activeTime %v  flowThreshold %v", time.Now(),requestedPermits, availablePermits,pc.receiveTime,flowThreshold)
+					if pc.receiveTime.After(time.Now().Add(-2 *time.Second)){
+						pc.log.Errorf("now %v requesting more permits=%d available=%d activeTime %v  flowThreshold %v", time.Now(),requestedPermits, availablePermits,pc.receiveTime,flowThreshold)
 						if err := pc.internalFlow(uint32(zeroQueueSize/2)); err != nil {
 							pc.log.WithError(err).Error("unable to send permits")
 						}
