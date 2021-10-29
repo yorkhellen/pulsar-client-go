@@ -825,9 +825,11 @@ func (pc *partitionConsumer) dispatcher() {
 					}
 				} else {
 					if pc.receiveTime.After(time.Now().Add(-10 *time.Second)){
-						//pc.log.Errorf("now %v requesting more permits=%d available=%d activeTime %v  flowThreshold %v", time.Now(),requestedPermits, availablePermits,pc.receiveTime,flowThreshold)
-						if err := pc.internalFlow(uint32(zeroQueueSize-len(pc.queueCh))); err != nil {
-							pc.log.WithError(err).Error("unable to send permits")
+						Permits := uint32(zeroQueueSize-len(pc.queueCh))
+						if Permits > 0  {
+							if err := pc.internalFlow(Permits); err != nil {
+								pc.log.WithError(err).Error("unable to send permits")
+							}
 						}
 					}
 				}
