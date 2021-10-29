@@ -789,7 +789,7 @@ func (pc *partitionConsumer) dispatcher() {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			} else {
-				if err := pc.internalFlow(zeroQueueSize/10); err != nil {
+				if err := pc.internalFlow(zeroQueueSize/2); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 
@@ -812,7 +812,7 @@ func (pc *partitionConsumer) dispatcher() {
 			// TODO implement a better flow controller
 			// send more permits if needed
 			pc.availablePermits++
-			flowThreshold := int32(math.Max(float64(pc.queueSize/2), zeroQueueSize-100))
+			flowThreshold := int32(math.Max(float64(pc.queueSize/2), zeroQueueSize/2))
 			if pc.availablePermits >= flowThreshold {
 				availablePermits := pc.availablePermits
 				requestedPermits := availablePermits
@@ -825,9 +825,10 @@ func (pc *partitionConsumer) dispatcher() {
 					}
 				} else {
 					if pc.receiveTime.After(time.Now().Add(100 * time.Millisecond)){
-						if err := pc.internalFlow(uint32(zeroQueueSize/10)); err != nil {
+						if err := pc.internalFlow(uint32(requestedPermits)); err != nil {
 							pc.log.WithError(err).Error("unable to send permits")
 						}
+
 					}
 				}
 			}
@@ -870,7 +871,7 @@ func (pc *partitionConsumer) dispatcher() {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}else {
-				if err := pc.internalFlow(uint32(zeroQueueSize/10)); err != nil {
+				if err := pc.internalFlow(uint32(zeroQueueSize/2)); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}
