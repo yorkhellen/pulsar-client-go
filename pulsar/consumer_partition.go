@@ -146,6 +146,8 @@ type partitionConsumer struct {
 	compressionProviders map[pb.CompressionType]compression.Provider
 	metrics              *internal.LeveledMetrics
 	decryptor            cryptointernal.Decryptor
+
+	receiveTime          time.Time
 }
 
 func newPartitionConsumer(parent Consumer, client *client, options *partitionConsumerOpts,
@@ -176,6 +178,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 		compressionProviders: make(map[pb.CompressionType]compression.Provider),
 		dlq:                  dlq,
 		metrics:              metrics,
+		receiveTime:			time.Now(),
 	}
 	pc.setConsumerState(consumerInit)
 	pc.log = client.log.SubLogger(log.Fields{
@@ -706,6 +709,10 @@ func (pc *partitionConsumer) ConnectionClosed() {
 	pc.connectClosedCh <- connectionClosed{}
 }
 
+func (pc *partitionConsumer) MarkNow() {
+	pc.receiveTime = time.Now()
+}
+
 // Flow command gives additional permits to send messages to the consumer.
 // A typical consumer implementation will use a queue to accumulate these messages
 // before the application is ready to consume them. After the consumer is ready,
@@ -777,10 +784,15 @@ func (pc *partitionConsumer) dispatcher() {
 
 			pc.log.Debugf("dispatcher requesting initial permits=%d", initialPermits)
 			// send initial permits
-			if pc.queueSize >0 {
+			if pc.queueSize >0  { // means not zero queue
 				if err := pc.internalFlow(initialPermits); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
+			} else {
+				if err := pc.internalFlow(zeroQueueSize/10); err != nil {
+					pc.log.WithError(err).Error("unable to send initial permits to broker")
+				}
+
 			}
 
 		case msgs, ok := <-queueCh:
@@ -800,7 +812,7 @@ func (pc *partitionConsumer) dispatcher() {
 			// TODO implement a better flow controller
 			// send more permits if needed
 			pc.availablePermits++
-			flowThreshold := int32(math.Max(float64(pc.queueSize/2), 1))
+			flowThreshold := int32(math.Max(float64(pc.queueSize/2), zeroQueueSize-100))
 			if pc.availablePermits >= flowThreshold {
 				availablePermits := pc.availablePermits
 				requestedPermits := availablePermits
@@ -810,6 +822,12 @@ func (pc *partitionConsumer) dispatcher() {
 				if pc.queueSize > 0 {
 					if err := pc.internalFlow(uint32(requestedPermits)); err != nil {
 						pc.log.WithError(err).Error("unable to send permits")
+					}
+				} else {
+					if pc.receiveTime.After(time.Now().Add(100 * time.Millisecond)){
+						if err := pc.internalFlow(uint32(zeroQueueSize/10)); err != nil {
+							pc.log.WithError(err).Error("unable to send permits")
+						}
 					}
 				}
 			}
@@ -849,6 +867,10 @@ func (pc *partitionConsumer) dispatcher() {
 			// send initial permits
 			if pc.queueSize > 0 {
 				if err := pc.internalFlow(initialPermits); err != nil {
+					pc.log.WithError(err).Error("unable to send initial permits to broker")
+				}
+			}else {
+				if err := pc.internalFlow(uint32(zeroQueueSize/10)); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}
