@@ -29,7 +29,7 @@ import (
 
 const (
 	defaultReceiverQueueSize = 1000
-	zeroQueueSize            = 40
+	zeroQueueSize            = 60
 )
 
 type reader struct {
