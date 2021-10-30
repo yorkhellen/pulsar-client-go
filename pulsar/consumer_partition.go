@@ -824,7 +824,7 @@ func (pc *partitionConsumer) dispatcher() {
 						pc.log.WithError(err).Error("unable to send permits")
 					}
 				} else {
-					if pc.receiveTime.After(time.Now().Add(-10 *time.Second)){
+					if pc.receiveTime.After(time.Now().Add(-5 *time.Second)){
 							if err := pc.internalFlow(zeroQueueSize/2); err != nil {
 								pc.log.WithError(err).Error("unable to send permits")
 						}
