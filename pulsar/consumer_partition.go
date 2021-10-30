@@ -811,7 +811,7 @@ func (pc *partitionConsumer) dispatcher() {
 			// TODO implement a better flow controller
 			// send more permits if needed
 			pc.availablePermits++
-			flowThreshold := int32(math.Max(float64(pc.queueSize/2), 1))
+			flowThreshold := int32(math.Max(float64(pc.queueSize/2), zeroQueueSize /2))
 			//pc.log.Errorf(" pcTopicName %v nowTime %v receiveTime %v request available %v flowThrehold %v",pc.topic,time.Now(),pc.receiveTime, pc.availablePermits,flowThreshold)
 			if pc.availablePermits >= flowThreshold {
 				availablePermits := pc.availablePermits
@@ -825,11 +825,8 @@ func (pc *partitionConsumer) dispatcher() {
 					}
 				} else {
 					if pc.receiveTime.After(time.Now().Add(-10 *time.Second)){
-						Permits := uint32(zeroQueueSize-len(pc.queueCh))
-						if Permits > 0  {
-							if err := pc.internalFlow(Permits); err != nil {
+							if err := pc.internalFlow(zeroQueueSize/2); err != nil {
 								pc.log.WithError(err).Error("unable to send permits")
-							}
 						}
 					}
 				}
