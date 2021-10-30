@@ -789,7 +789,7 @@ func (pc *partitionConsumer) dispatcher() {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			} else {
-				if err := pc.internalFlow(zeroQueueSize/2); err != nil {
+				if err := pc.internalFlow(zeroQueueSize); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}
@@ -870,7 +870,7 @@ func (pc *partitionConsumer) dispatcher() {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}else {
-				if err := pc.internalFlow(uint32(zeroQueueSize/2)); err != nil {
+				if err := pc.internalFlow(uint32(zeroQueueSize)); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
 			}
