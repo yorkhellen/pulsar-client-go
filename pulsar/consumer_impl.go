@@ -406,8 +406,6 @@ func (c * consumer) Flow(permits uint32) {
 }
 
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
-	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
-	c.consumers[cursor].MarkNow()
 	for {
 		select {
 		case <-c.closeCh:
