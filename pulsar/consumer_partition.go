@@ -177,7 +177,6 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 		compressionProviders: make(map[pb.CompressionType]compression.Provider),
 		dlq:                  dlq,
 		metrics:              metrics,
-		receiveTime:			time.Now(),
 	}
 	pc.setConsumerState(consumerInit)
 	pc.log = client.log.SubLogger(log.Fields{
