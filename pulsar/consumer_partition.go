@@ -146,7 +146,6 @@ type partitionConsumer struct {
 	compressionProviders map[pb.CompressionType]compression.Provider
 	metrics              *internal.LeveledMetrics
 	decryptor            cryptointernal.Decryptor
-
 }
 
 func newPartitionConsumer(parent Consumer, client *client, options *partitionConsumerOpts,
@@ -778,7 +777,7 @@ func (pc *partitionConsumer) dispatcher() {
 
 			pc.log.Debugf("dispatcher requesting initial permits=%d", initialPermits)
 			// send initial permits
-			if pc.queueSize >0  { // means not zero queue
+			if pc.queueSize > 0 { // means not zero queue
 				if err := pc.internalFlow(initialPermits); err != nil {
 					pc.log.WithError(err).Error("unable to send initial permits to broker")
 				}
@@ -1011,7 +1010,7 @@ func (pc *partitionConsumer) reconnectToBroker() {
 			return
 		}
 		errMsg := err.Error()
-		if strings.Contains(errMsg, errTopicNotFount)  || strings.Contains(errMsg,errMetadata){
+		if strings.Contains(errMsg, errTopicNotFount) || strings.Contains(errMsg, errMetadata) {
 			// when topic is deleted, we should give up reconnection.
 			pc.log.Warn("Topic Not Found.")
 			break
