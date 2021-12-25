@@ -39,10 +39,11 @@ type multiTopicConsumer struct {
 
 	consumers map[string]Consumer
 
-	dlq       *dlqRouter
-	rlq       *retryRouter
-	closeOnce sync.Once
-	closeCh   chan struct{}
+	dlq               *dlqRouter
+	rlq               *retryRouter
+	reconnectBrokerCh chan int
+	closeOnce         sync.Once
+	closeCh           chan struct{}
 
 	log log.Logger
 }
@@ -50,15 +51,16 @@ type multiTopicConsumer struct {
 func newMultiTopicConsumer(client *client, options ConsumerOptions, topics []string,
 	messageCh chan ConsumerMessage, dlq *dlqRouter, rlq *retryRouter) (Consumer, error) {
 	mtc := &multiTopicConsumer{
-		client:       client,
-		options:      options,
-		messageCh:    messageCh,
-		consumers:    make(map[string]Consumer, len(topics)),
-		closeCh:      make(chan struct{}),
-		dlq:          dlq,
-		rlq:          rlq,
-		log:          client.log.SubLogger(log.Fields{"topic": topics}),
-		consumerName: options.Name,
+		client:            client,
+		options:           options,
+		messageCh:         messageCh,
+		consumers:         make(map[string]Consumer, len(topics)),
+		closeCh:           make(chan struct{}),
+		reconnectBrokerCh: make(chan int),
+		dlq:               dlq,
+		rlq:               rlq,
+		log:               client.log.SubLogger(log.Fields{"topic": topics}),
+		consumerName:      options.Name,
 	}
 
 	var errs error
@@ -84,6 +86,10 @@ func (c *multiTopicConsumer) Subscription() string {
 	return c.options.SubscriptionName
 }
 
+func (c *multiTopicConsumer) ReconnectBrokerChan() chan int {
+	return c.reconnectBrokerCh
+}
+
 func (c *multiTopicConsumer) Unsubscribe() error {
 	var errs error
 	for t, consumer := range c.consumers {
@@ -96,8 +102,8 @@ func (c *multiTopicConsumer) Unsubscribe() error {
 	return errs
 }
 
-func (c *multiTopicConsumer) Flow(permit uint32){
-	for _,consumer := range c.consumers {
+func (c *multiTopicConsumer) Flow(permit uint32) {
+	for _, consumer := range c.consumers {
 		consumer.Flow(permit)
 		return
 	}
@@ -217,6 +223,7 @@ func (c *multiTopicConsumer) Close() {
 		}
 		wg.Wait()
 		close(c.closeCh)
+		close(c.reconnectBrokerCh)
 		c.client.handlers.Del(c)
 		c.dlq.close()
 		c.rlq.close()

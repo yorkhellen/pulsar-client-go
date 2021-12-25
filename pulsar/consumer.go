@@ -245,4 +245,7 @@ type Consumer interface {
 
 	// Name returns the name of consumer.
 	Name() string
+
+	// channel for the consumerReconnectBroker
+	ReconnectBrokerChan() chan int
 }

@@ -47,17 +47,18 @@ type consumer struct {
 	consumers                 []*partitionConsumer
 	consumerName              string
 	disableForceTopicCreation bool
-	cursorWithZeroQueueSize int32
+	cursorWithZeroQueueSize   int32
 
 	// channel used to deliver message to clients
 	messageCh chan ConsumerMessage
 
-	dlq           *dlqRouter
-	rlq           *retryRouter
-	closeOnce     sync.Once
-	closeCh       chan struct{}
-	errorCh       chan error
-	stopDiscovery func()
+	dlq               *dlqRouter
+	rlq               *retryRouter
+	closeOnce         sync.Once
+	closeCh           chan struct{}
+	errorCh           chan error
+	reconnectBrokerCh chan int
+	stopDiscovery     func()
 
 	log     log.Logger
 	metrics *internal.LeveledMetrics
@@ -201,6 +202,7 @@ func newInternalConsumer(client *client, options ConsumerOptions, topic string,
 		messageCh:                 messageCh,
 		closeCh:                   make(chan struct{}),
 		errorCh:                   make(chan error),
+		reconnectBrokerCh:         make(chan int),
 		dlq:                       dlq,
 		rlq:                       rlq,
 		log:                       client.log.SubLogger(log.Fields{"topic": topic}),
@@ -406,8 +408,8 @@ func (c *consumer) Unsubscribe() error {
 	}
 	return nil
 }
-func (c * consumer) Flow(permits uint32) {
-	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize,1)%int32(len(c.consumers))
+func (c *consumer) Flow(permits uint32) {
+	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
 	c.consumers[cursor].internalFlow(permits)
 }
 
@@ -430,6 +432,10 @@ func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
 // Messages
 func (c *consumer) Chan() <-chan ConsumerMessage {
 	return c.messageCh
+}
+
+func (c *consumer) ReconnectBrokerChan() chan int {
+	return c.reconnectBrokerCh
 }
 
 // Ack the consumption of a single message
@@ -550,6 +556,7 @@ func (c *consumer) Close() {
 		}
 		wg.Wait()
 		close(c.closeCh)
+		close(c.reconnectBrokerCh)
 		c.client.handlers.Del(c)
 		c.dlq.close()
 		c.rlq.close()

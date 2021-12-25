@@ -1013,6 +1013,11 @@ func (pc *partitionConsumer) reconnectToBroker() {
 		if err == nil {
 			// Successfully reconnected
 			pc.log.Info("Reconnected consumer to broker")
+			select {
+			case pc.parentConsumer.ReconnectBrokerChan() <- 1:
+			default:
+				pc.log.Info("reconnectBroker chan block")
+			}
 			return
 		}
 		errMsg := err.Error()

@@ -53,8 +53,9 @@ type regexConsumer struct {
 	subscribeCh   chan []string
 	unsubscribeCh chan []string
 
-	closeOnce sync.Once
-	closeCh   chan struct{}
+	closeOnce         sync.Once
+	closeCh           chan struct{}
+	reconnectBrokerCh chan int
 
 	ticker *time.Ticker
 
@@ -75,9 +76,10 @@ func newRegexConsumer(c *client, opts ConsumerOptions, tn *internal.TopicName, p
 		namespace: tn.Namespace,
 		pattern:   pattern,
 
-		consumers:     make(map[string]Consumer),
-		subscribeCh:   make(chan []string, 1),
-		unsubscribeCh: make(chan []string, 1),
+		consumers:         make(map[string]Consumer),
+		subscribeCh:       make(chan []string, 1),
+		unsubscribeCh:     make(chan []string, 1),
+		reconnectBrokerCh: make(chan int),
 
 		closeCh: make(chan struct{}),
 
@@ -118,12 +120,12 @@ func newRegexConsumer(c *client, opts ConsumerOptions, tn *internal.TopicName, p
 	return rc, nil
 }
 
-func (c *regexConsumer)BatchReceive(ctx context.Context,num uint32)([]Message,error) {
-	if num <= 0  {
-		return nil ,errors.New("batch receive message number is invalid")
+func (c *regexConsumer) BatchReceive(ctx context.Context, num uint32) ([]Message, error) {
+	if num <= 0 {
+		return nil, errors.New("batch receive message number is invalid")
 	}
 
-	var messages [] Message
+	var messages []Message
 
 	for {
 		select {
@@ -133,7 +135,7 @@ func (c *regexConsumer)BatchReceive(ctx context.Context,num uint32)([]Message,er
 			if !ok {
 				return nil, newError(ConsumerClosed, "consumer closed")
 			}
-			messages = append(messages,cm.Message)
+			messages = append(messages, cm.Message)
 			if len(messages) >= int(num) {
 				return messages, nil
 			}
@@ -145,6 +147,10 @@ func (c *regexConsumer)BatchReceive(ctx context.Context,num uint32)([]Message,er
 
 func (c *regexConsumer) Subscription() string {
 	return c.options.SubscriptionName
+}
+
+func (c *regexConsumer) ReconnectBrokerChan() chan int {
+	return c.reconnectBrokerCh
 }
 
 func (c *regexConsumer) Unsubscribe() error {
@@ -161,8 +167,8 @@ func (c *regexConsumer) Unsubscribe() error {
 	}
 	return errs
 }
-func (c *regexConsumer) Flow(permit uint32){
-	for _,consumer := range c.consumers {
+func (c *regexConsumer) Flow(permit uint32) {
+	for _, consumer := range c.consumers {
 		consumer.Flow(permit)
 		return
 	}
@@ -266,6 +272,7 @@ func (c *regexConsumer) Close() {
 		}
 		wg.Wait()
 		c.client.handlers.Del(c)
+		close(c.reconnectBrokerCh)
 		c.dlq.close()
 		c.rlq.close()
 	})
