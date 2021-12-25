@@ -91,6 +91,7 @@ type partitionConsumerOpts struct {
 	nackRedeliveryDelay        time.Duration
 	nackBackoffPolicy          NackBackoffPolicy
 	metadata                   map[string]string
+	subProperties              map[string]string
 	replicateSubscriptionState bool
 	startMessageID             trackingMessageID
 	startMessageIDInclusive    bool
@@ -554,6 +555,7 @@ func (pc *partitionConsumer) MessageReceived(response *pb.CommandMessage, header
 					replicatedFrom:      msgMeta.GetReplicatedFrom(),
 					redeliveryCount:     response.GetRedeliveryCount(),
 					encryptionContext:   createEncryptionContext(msgMeta),
+					orderingKey:         string(msgMeta.OrderingKey),
 				},
 			}
 			pc.queueCh <- messages
@@ -625,6 +627,7 @@ func (pc *partitionConsumer) MessageReceived(response *pb.CommandMessage, header
 				replicationClusters: msgMeta.GetReplicateTo(),
 				replicatedFrom:      msgMeta.GetReplicatedFrom(),
 				redeliveryCount:     response.GetRedeliveryCount(),
+				orderingKey:         string(smm.OrderingKey),
 			}
 		} else {
 			msg = &message{
@@ -1021,7 +1024,7 @@ func (pc *partitionConsumer) reconnectToBroker() {
 			return
 		}
 		errMsg := err.Error()
-		if strings.Contains(errMsg, errTopicNotFount) || strings.Contains(errMsg, errMetadata) {
+		if strings.Contains(errMsg, errTopicNotFount) {
 			// when topic is deleted, we should give up reconnection.
 			pc.log.Warn("Topic Not Found.")
 			break
@@ -1072,6 +1075,7 @@ func (pc *partitionConsumer) grabConn() error {
 		PriorityLevel:              nil,
 		Durable:                    proto.Bool(pc.options.subscriptionMode == durable),
 		Metadata:                   internal.ConvertFromStringMap(pc.options.metadata),
+		SubscriptionProperties:     internal.ConvertFromStringMap(pc.options.subProperties),
 		ReadCompacted:              proto.Bool(pc.options.readCompacted),
 		Schema:                     pbSchema,
 		InitialPosition:            initialPosition.Enum(),
@@ -1087,6 +1091,10 @@ func (pc *partitionConsumer) grabConn() error {
 
 	if len(pc.options.metadata) > 0 {
 		cmdSubscribe.Metadata = toKeyValues(pc.options.metadata)
+	}
+
+	if len(pc.options.subProperties) > 0 {
+		cmdSubscribe.SubscriptionProperties = toKeyValues(pc.options.subProperties)
 	}
 
 	// force topic creation is enabled by default so
