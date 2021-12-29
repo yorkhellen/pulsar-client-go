@@ -912,7 +912,7 @@ func (pc *partitionConsumer) runEventsLoop() {
 			case <-pc.closeCh:
 				return
 			case <-pc.connectClosedCh:
-				pc.log.Debug("runEventsLoop will reconnect")
+				pc.log.Info("runEventsLoop will reconnect in consumer")
 				pc.reconnectToBroker()
 			}
 		}
