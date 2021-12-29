@@ -19,6 +19,8 @@ package internal
 
 import (
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // BlockingQueue is a interface of block queue
@@ -80,6 +82,7 @@ func (bq *blockingQueue) Put(item interface{}) {
 	defer bq.mutex.Unlock()
 
 	for bq.size == bq.maxSize {
+		log.Info("In put func wait logic.")
 		bq.isNotFull.Wait()
 	}
 
@@ -94,6 +97,7 @@ func (bq *blockingQueue) Put(item interface{}) {
 
 	if wasEmpty {
 		// Wake up eventual reader waiting for next item
+		log.Info("Wake up eventual reader waiting for next item")
 		bq.isNotEmpty.Signal()
 	}
 }
@@ -103,6 +107,7 @@ func (bq *blockingQueue) Take() interface{} {
 	defer bq.mutex.Unlock()
 
 	for bq.size == 0 {
+		log.Info("In take func wait logic.")
 		bq.isNotEmpty.Wait()
 	}
 
@@ -165,6 +170,7 @@ func (bq *blockingQueue) dequeue() interface{} {
 	}
 
 	bq.size--
+	log.Info("Wake up eventual reader waiting for next item")
 	bq.isNotFull.Signal()
 	return item
 }
