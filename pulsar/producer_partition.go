@@ -67,7 +67,6 @@ type partitionProducer struct {
 	topic  string
 	log    log.Logger
 	cnx    internal.Connection
-	err    error
 
 	options                  *ProducerOptions
 	producerName             string
@@ -354,7 +353,6 @@ func (p *partitionProducer) reconnectToBroker() {
 		// In reconnection logic, grabCnx maybe return err, but we did not return the error.
 		// So in partitionProducer struct, we define an err object to make it easier for users to
 		// determine what caused the grabCnx error.
-		p.err = err
 		if err == nil {
 			// Successfully reconnected
 			p.log.WithField("cnx", p.cnx.ID()).Info("Reconnected producer to broker")
