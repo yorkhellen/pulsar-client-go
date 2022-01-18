@@ -574,7 +574,7 @@ func (c *consumer) Close() {
 		}
 		wg.Wait()
 		close(c.closeCh)
-		close(c.reconnectBrokerCh)
+		//close(c.reconnectBrokerCh)
 		c.client.handlers.Del(c)
 		c.dlq.close()
 		c.rlq.close()

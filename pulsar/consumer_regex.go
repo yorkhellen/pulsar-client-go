@@ -272,7 +272,7 @@ func (c *regexConsumer) Close() {
 		}
 		wg.Wait()
 		c.client.handlers.Del(c)
-		close(c.reconnectBrokerCh)
+		//close(c.reconnectBrokerCh)
 		c.dlq.close()
 		c.rlq.close()
 	})
