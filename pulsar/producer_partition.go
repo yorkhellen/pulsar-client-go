@@ -214,7 +214,7 @@ func (p *partitionProducer) grabCnx() error {
 		p.log.WithError(err).Error("Failed to create producer")
 		return err
 	}
-	p.log.Infof("id %v create producer request info %+v  responseProducerName %v",id ,*cmdProducer,res.Response.ProducerSuccess.GetProducerName())
+	p.log.Infof("id %v create producer request info %+v  responseProducerName %v", id, *cmdProducer, res.Response.ProducerSuccess.GetProducerName())
 	p.producerName = res.Response.ProducerSuccess.GetProducerName()
 
 	var encryptor internalcrypto.Encryptor
@@ -715,11 +715,14 @@ func (p *partitionProducer) Send(ctx context.Context, msg *ProducerMessage) (Mes
 
 	var err error
 	var msgID MessageID
-
+	// use atomic bool to avoid race
+	isDone := ua.NewBool(false)
 	p.internalSendAsync(ctx, msg, func(ID MessageID, message *ProducerMessage, e error) {
-		err = e
-		msgID = ID
-		wg.Done()
+		if isDone.CAS(false, true) {
+			err = e
+			msgID = ID
+			wg.Done()
+		}
 	}, true)
 
 	wg.Wait()
