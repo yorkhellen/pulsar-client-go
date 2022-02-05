@@ -309,6 +309,7 @@ func (p *partitionProducer) ConnectionClosed() {
 	// Trigger reconnection in the produce goroutine
 	p.log.WithField("cnx", p._getConn().ID()).Warn("Connection was closed")
 	p.connectClosedCh <- connectionClosed{}
+	p.log.WithField("cnx", p._getConn().ID()).Warn("connectionClosed msg sent to connectClosedCh")
 }
 
 func (p *partitionProducer) reconnectToBroker() {
