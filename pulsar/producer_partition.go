@@ -309,6 +309,7 @@ func (p *partitionProducer) ConnectionClosed() {
 	// Trigger reconnection in the produce goroutine
 	p.log.WithField("cnx", p._getConn().ID()).Warn("Connection was closed")
 	p.connectClosedCh <- connectionClosed{}
+	p.log.WithField("cnx", p._getConn().ID()).Warn("connectionClosed msg sent to connectClosedCh")
 }
 
 func (p *partitionProducer) reconnectToBroker() {
@@ -326,6 +327,7 @@ func (p *partitionProducer) reconnectToBroker() {
 	for maxRetry != 0 {
 		if p.getProducerState() != producerReady {
 			// Producer is already closing
+			p.log.Info("producer state not ready, exit reconnect")
 			return
 		}
 
@@ -343,6 +345,7 @@ func (p *partitionProducer) reconnectToBroker() {
 			p.log.WithField("cnx", p._getConn().ID()).Info("Reconnected producer to broker")
 			return
 		}
+		p.log.WithError(err).Error("Failed to create producer at reconnect")
 		errMsg := err.Error()
 		if strings.Contains(errMsg, errTopicNotFount) {
 			// when topic is deleted, we should give up reconnection.
@@ -358,12 +361,15 @@ func (p *partitionProducer) reconnectToBroker() {
 
 func (p *partitionProducer) runEventsLoop() {
 	go func() {
-		select {
-		case <-p.closeCh:
-			return
-		case <-p.connectClosedCh:
-			p.log.Info("runEventsLoop will reconnect in producer")
-			p.reconnectToBroker()
+		for {
+			select {
+			case <-p.closeCh:
+				p.log.Info("close producer, exit reconnect")
+				return
+			case <-p.connectClosedCh:
+				p.log.Info("runEventsLoop will reconnect in producer")
+				p.reconnectToBroker()
+			}
 		}
 	}()
 
