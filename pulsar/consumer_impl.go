@@ -25,7 +25,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/apache/pulsar-client-go/pulsar/crypto"
 	"github.com/apache/pulsar-client-go/pulsar/internal"
@@ -439,9 +438,6 @@ func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
 			return nil, newError(ConsumerClosed, "consumer closed")
 		case cm, ok := <-c.messageCh:
 			if !ok {
-				if cm.Message != nil && (*(*[2]uintptr)(unsafe.Pointer(&cm.Message)))[1] != 0 {
-					c.log.WithField("message", cm.Message).Warnf("get message from closed channel")
-				}
 				return nil, newError(ConsumerClosed, "consumer closed")
 			}
 			return cm.Message, nil
