@@ -244,7 +244,7 @@ func (c *connection) connect() bool {
 		cnx       net.Conn
 		tlsConfig *tls.Config
 	)
-
+	connBegin := time.Now()
 	if c.tlsOptions == nil {
 		// Clear text connection
 		cnx, err = net.DialTimeout("tcp", c.physicalAddr.Host, c.connectionTimeout)
@@ -261,7 +261,7 @@ func (c *connection) connect() bool {
 	}
 
 	if err != nil {
-		c.log.WithError(err).Warn("Failed to connect to broker.")
+		c.log.WithError(err).Warnf("Failed to connect to broker, use time %vms", time.Since(connBegin).Milliseconds())
 		c.Close()
 		return false
 	}
