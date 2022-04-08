@@ -426,8 +426,16 @@ func (c *consumer) Unsubscribe() error {
 	}
 	return nil
 }
+
 func (c *consumer) Flow(permits uint32) {
 	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
+	for {
+		if c.consumers[cursor] != nil {
+			break
+		}
+		cursor = atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
+		time.Sleep(10 * time.Millisecond)
+	}
 	c.consumers[cursor].internalFlow(permits)
 }
 
