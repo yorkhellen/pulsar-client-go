@@ -433,6 +433,7 @@ func (c *consumer) Flow(permits uint32) {
 		if c.consumers[cursor] != nil {
 			break
 		}
+		c.log.Warnf("[%d] partition is nil, current partiton count [%d]", cursor, len(c.consumers))
 		cursor = atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
 		time.Sleep(10 * time.Millisecond)
 	}
