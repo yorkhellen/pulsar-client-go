@@ -429,11 +429,18 @@ func (c *consumer) Unsubscribe() error {
 
 func (c *consumer) Flow(permits uint32) {
 	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
+	retryCount := 0
 	for {
 		if c.consumers[cursor] != nil {
 			break
 		}
+		if retryCount >= 200 {
+			c.log.Errorf("retry[%d] get partition is still nil, current partiton count [%d], skip this flow", retryCount, cursor, len(c.consumers))
+			return
+		}
+		c.log.Warnf("[%d] partition is nil, current partiton count [%d], retry [%d] next partition", cursor, len(c.consumers), retryCount)
 		cursor = atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
+		retryCount += 1
 		time.Sleep(10 * time.Millisecond)
 	}
 	c.consumers[cursor].internalFlow(permits)
