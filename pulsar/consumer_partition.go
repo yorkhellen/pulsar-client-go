@@ -647,6 +647,9 @@ func (pc *partitionConsumer) MessageReceived(response *pb.CommandMessage, header
 	}
 
 	// send messages to the dispatcher
+	if len(pc.queueCh) == pc.options.receiverQueueSize {
+		pc.log.Warn("QueueCh is full, sdk will blocked", len(pc.queueCh))
+	}
 	pc.queueCh <- messages
 	return nil
 }
