@@ -649,9 +649,9 @@ func (pc *partitionConsumer) MessageReceived(response *pb.CommandMessage, header
 	}
 
 	// send messages to the dispatcher
-	if len(pc.queueCh) == zeroQueueSize {
-		pc.log.Warnf("queueCh is full, sdk will blocked, queueCh cap [%d], len [%d] queueSize [%d]", cap(pc.queueCh), len(pc.queueCh), pc.queueSize)
-	}
+	//if len(pc.queueCh) == zeroQueueSize {
+	//	pc.log.Warnf("queueCh is full, sdk will blocked, queueCh cap [%d], len [%d] queueSize [%d]", cap(pc.queueCh), len(pc.queueCh), pc.queueSize)
+	//}
 	pc.queueCh <- messages
 	return nil
 }
