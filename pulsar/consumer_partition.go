@@ -152,9 +152,11 @@ type partitionConsumer struct {
 func newPartitionConsumer(parent Consumer, client *client, options *partitionConsumerOpts,
 	messageCh chan ConsumerMessage, dlq *dlqRouter,
 	metrics *internal.LeveledMetrics) (*partitionConsumer, error) {
-	receiveQueueSize := options.receiverQueueSize
-	if receiveQueueSize == 0 {
-		receiveQueueSize = zeroQueueSize
+	// cmq set options.receiverQueueSize to 0
+	receiverQueueSize := options.receiverQueueSize
+	if receiverQueueSize == 0 {
+		// then receiverQueueSize will set to 20
+		receiverQueueSize = zeroQueueSize
 	}
 	pc := &partitionConsumer{
 		parentConsumer:       parent,
@@ -166,7 +168,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 		partitionIdx:         int32(options.partitionIdx),
 		eventsCh:             make(chan interface{}, 10),
 		queueSize:            int32(options.receiverQueueSize),
-		queueCh:              make(chan []*message, receiveQueueSize),
+		queueCh:              make(chan []*message, receiverQueueSize),
 		startMessageID:       options.startMessageID,
 		connectedCh:          make(chan struct{}),
 		messageCh:            messageCh,
@@ -207,7 +209,7 @@ func newPartitionConsumer(parent Consumer, client *client, options *partitionCon
 		pc.nackTracker.Close()
 		return nil, err
 	}
-	pc.log.Info("Created consumer")
+	pc.log.Infof("Created consumer with queueCh cap [%d], len [%d] queueSize [%d]", cap(pc.queueCh), len(pc.queueCh), pc.queueSize)
 	pc.setConsumerState(consumerReady)
 
 	if pc.options.startMessageIDInclusive && pc.startMessageID.equal(lastestMessageID.(messageID)) {
@@ -647,8 +649,8 @@ func (pc *partitionConsumer) MessageReceived(response *pb.CommandMessage, header
 	}
 
 	// send messages to the dispatcher
-	if len(pc.queueCh) == pc.options.receiverQueueSize {
-		pc.log.Warn("QueueCh is full, sdk will blocked", len(pc.queueCh))
+	if len(pc.queueCh) == zeroQueueSize {
+		pc.log.Warnf("queueCh is full, sdk will blocked, queueCh cap [%d], len [%d] queueSize [%d]", cap(pc.queueCh), len(pc.queueCh), pc.queueSize)
 	}
 	pc.queueCh <- messages
 	return nil
