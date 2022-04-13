@@ -23,7 +23,6 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar/crypto"
@@ -428,22 +427,13 @@ func (c *consumer) Unsubscribe() error {
 }
 
 func (c *consumer) Flow(permits uint32) {
-	cursor := atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
-	retryCount := 0
-	for {
-		if c.consumers[cursor] != nil {
-			break
+	for idx, consumer := range c.consumers {
+		if consumer != nil {
+			consumer.internalFlow(permits)
+		} else {
+			c.log.Warnf("[%d] partition is nil, current partiton count [%d]", idx, len(c.consumers))
 		}
-		if retryCount >= 200 {
-			c.log.Errorf("retry[%d] get partition is still nil, current partiton count [%d], skip this flow", retryCount, cursor, len(c.consumers))
-			return
-		}
-		c.log.Warnf("[%d] partition is nil, current partiton count [%d], retry [%d] next partition", cursor, len(c.consumers), retryCount)
-		cursor = atomic.AddInt32(&c.cursorWithZeroQueueSize, 1) % int32(len(c.consumers))
-		retryCount += 1
-		time.Sleep(10 * time.Millisecond)
 	}
-	c.consumers[cursor].internalFlow(permits)
 }
 
 func (c *consumer) Receive(ctx context.Context) (message Message, err error) {
